@@ -1,0 +1,52 @@
+# Python cache/artifacts
+__pycache__/
+*.py[cod]
+*.so
+.mypy_cache/
+.pytest_cache/
+*.coverage
+.coverage
+dist/
+build/
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+*.env
+
+# Editors/OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Logs and results (both thn/ and tcn/)
+thn/log/
+tcn/log/
+thn/results/
+tcn/results/
+**/*.log
+**/*.pkl
+
+# Checkpoints / models
+thn/saved_checkpoints/
+tcn/saved_checkpoints/
+thn/saved_models/
+tcn/saved_models/
+**/*.pth
+**/*.pt
+
+# Runtime dumps
+thn/runtime_split_dumps/
+tcn/runtime_split_dumps/
+
+# Large/derived data (remove if you want to version datasets)
+thn/data/*.npy
+tcn/data/*.npy
+thn/data/*.csv
+tcn/data/*.csv
+

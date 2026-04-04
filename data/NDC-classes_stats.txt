@@ -1,0 +1,33 @@
+HOTN dataset statistics
+
+- unique_nodes: 1161
+- interactions_total: 49726
+- interactions_non_singleton: 46285
+
+Distribution by interaction size (all interactions):
+size 1: 3441
+size 2: 25504
+size 3: 7309
+size 4: 2843
+size 5: 3377
+size 6: 4731
+size 7: 1124
+size 8: 386
+size 9: 312
+size 10: 158
+size 11: 61
+size 12: 74
+size 13: 90
+size 14: 82
+size 15: 89
+size 16: 42
+size 17: 18
+size 18: 24
+size 19: 19
+size 20: 18
+size 21: 11
+size 22: 7
+size 23: 2
+size 24: 2
+size 27: 1
+size 39: 1
