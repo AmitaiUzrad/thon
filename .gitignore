@@ -25,33 +25,33 @@ Thumbs.db
 .idea/
 
 # Logs and results (both thn/ and tcn/)
-thn/log/
-tcn/log/
-thn/results/
-tcn/results/
+thgn/log/
+tcen/log/
+thgn/results/
+tcen/results/
 **/*.log
 **/*.pkl
 
 # Checkpoints / models
-thn/saved_checkpoints/
-tcn/saved_checkpoints/
-thn/saved_models/
-tcn/saved_models/
+thgn/saved_checkpoints/
+tcen/saved_checkpoints/
+thgn/saved_models/
+tcen/saved_models/
 **/*.pth
 **/*.pt
 
 # Runtime dumps
-thn/runtime_split_dumps/
-tcn/runtime_split_dumps/
+thgn/runtime_split_dumps/
+tcen/runtime_split_dumps/
 
 # Heavy extras (scripts, data dumps, etc.)
-thn/extras/
+thgn/extras/
 
-# Large/derived data (remove if you want to version datasets)
-thn/data/*.npy
-tcn/data/*.npy
-thn/data/*.csv
-tcn/data/*.csv
+# Large/derived data
+thgn/data/*.npy
+tcen/data/*.npy
+thgn/data/*.csv
+tcen/data/*.csv
 
 
 **/*:Zone.Identifier

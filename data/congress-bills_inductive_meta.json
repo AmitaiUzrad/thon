@@ -1,0 +1,10 @@
+{
+  "val_time": 728387.0,
+  "test_time": 730313.0,
+  "new_node_ratio": 0.1,
+  "inductive_seed": 2020,
+  "n_total_unique_nodes": 1718,
+  "n_new_test_nodes": 171,
+  "neg_overlap_ratio": 0.5,
+  "neg_seed": 3030
+}
