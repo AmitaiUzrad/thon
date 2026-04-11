@@ -1,5 +1,16 @@
 # Temporal Higher-Order Networks: THGN and a Clique-Expanded TGN Baseline
 
+## Table of contents
+
+- [1. Overview](#1-overview)
+- [2. THGN: Logical Generalization of TGN](#2-thgn-logical-generalization-of-tgn)
+- [3. TCEN: Clique Expansion as the Pairwise Baseline](#3-tcen-clique-expansion-as-the-pairwise-baseline)
+- [4. Negative Sampling and Evaluation Alignment](#4-negative-sampling-and-evaluation-alignment)
+- [5. Experimental Setup](#5-experimental-setup)
+- [6. Results](#6-results)
+- [7. Summary](#7-summary)
+- [8. Usage](#8-usage)
+
 ## 1. Overview
 
 Many real-world systems are naturally described by **higher-order** temporal interactions: several entities participate jointly in an event at a single timestamp (e.g., co-presence, co-annotation, multi-way relations). A standard approach is to **reduce** such events to a collection of dyadic edges—for example by taking every pair of participants within each group interaction—and to apply temporal graph models such as Temporal Graph Networks (TGN) on the resulting pairwise stream.
@@ -127,14 +138,159 @@ All preprocessing and split generation are deterministic given a random seed.
 
 ## 6. Results
 
-The file `results/results_summary.csv` summarizes runs on **NDC-classes** for both **thn** and **tcn** across overlap values \(\{0, 0.25, 0.34, 0.5, 0.67, 0.75, 0.99\}\), with **five** independent runs per (model, overlap) condition. Columns `old_auc`, `new_auc`, `old_ap`, and `new_ap` support comparison under transductive vs. inductive stress.
-
-Qualitatively, **increasing overlap** (harder negatives) tends to **degrade** both models, as expected when the decision boundary tightens around near-positive set structure. Under this dataset and protocol, **TCN achieves very strong scores** especially in low-overlap regimes—consistent with a powerful pairwise temporal encoder operating on a dense clique-expanded stream. **THGN** remains the direct model for the **native higher-order** prediction task; relative rankings should be read together with the structural difference in Section 3 (clique expansion vs. one event per hyperedge).
-
 ---
 
 ## 7. Summary
 
-We implement **THGN** as a principled lifting of TGN-style temporal modeling from pairwise events \((u,v,t)\) to set-valued events \((S,t)\), with corresponding changes to memory conditioning, temporal context, set-level decoding, and higher-order negatives. We compare it to **TCN**, a TGN applied to the **clique expansion** of the same hypergraph data—a standard but non-equivalent pairwise reduction.
+---
 
-Shared preprocessing, temporal and inductive splits, and aligned validation/test negative fields allow a controlled comparison. The main takeaway is methodological: **explicit higher-order modeling** and **pairwise clique projection** answer different operational questions; this codebase makes both explicit and reports them under a common evaluation harness.
+## 8. Usage
+
+Experiments follow one pipeline: **preprocess** temporal hypergraphs into aligned splits, then run **self-supervised** training for **THGN** in `thgn/` and **TCEN** in `tcen/` (a pairwise temporal model on the clique-expanded stream from the same preprocessing run).
+
+### 8.1 Requirements
+
+Dependencies (Python ≥ 3.7):
+
+```bash
+pandas==1.1.0
+torch==1.6.0
+scikit_learn==0.23.1
+```
+
+### 8.2 Data layout
+
+Place the raw hypergraph table as a single CSV:
+
+```text
+data/<dataset>.csv
+```
+
+Use the **stem** of the file (without `.csv`) everywhere below as `--data`. The benchmarks described in **Section 5** use, for example, `NDC-classes`, `congress-bills`, and `tags-stack-overflow`.
+
+### 8.3 Preprocessing
+
+`preprocess_thon.py` builds **aligned** train/validation/test CSVs and feature `.npy` files for both models: hyperedge-level splits under `thgn/data/`, and the clique-expanded pairwise stream under `tcen/data/`. It also writes dataset stats and inductive / negative-sampling metadata next to the raw CSV (e.g. `data/<dataset>_stats.txt`, `data/<dataset>_inductive_meta.json`).
+
+From the **`thon/` repository root**:
+
+```bash
+python preprocess_thon.py --data congress-bills \
+  --input-dir data \
+  --thgn-out thgn/data \
+  --tcen-out tcen/data \
+  --stats-out-dir data
+```
+
+Important flags:
+
+| Flag | Role |
+|------|------|
+| `--data` | Dataset name (required); must match `data/<name>.csv`. |
+| `--input-dir` | Directory containing the raw CSV (default `data`). |
+| `--thgn-out` | Output directory for THGN splits and `ml_<dataset>.npy` (default `thgn/data`). |
+| `--tcen-out` | Output directory for TCEN splits and features (default `tcen/data`). |
+| `--stats-out-dir` | Where to write `_stats.txt`, `_inductive_meta.json`, and `_new_nodes.txt`. |
+| `--new-node-ratio` | Target fraction of nodes marked “new” for inductive evaluation (default `0.1`). |
+| `--inductive-seed` | RNG seed for the new-node mask (default `2020`). |
+| `--neg-overlap-ratio` | Evaluation negative overlap \rho with the positive hyperedge (default `0.99`); **change this and re-run preprocessing** for an overlap sweep (see **Section 5.7**). |
+| `--neg-seed` | RNG seed for fixed val/test negatives (default `3030`). |
+
+Preprocessing is **deterministic** given `--inductive-seed` and `--neg-seed`.
+
+### 8.4 Self-supervised training
+
+Both trainers implement the TGN-style **self-supervised** recipe (binary cross-entropy on positives vs. negatives), but THGN scores **hyperedges** and TCEN scores **expanded pairs** with interaction-level aggregation at evaluation (see **Sections 3 and 5**). Run each script from **its own package directory** so relative paths resolve to the emitted `data/` folders.
+
+**THGN** (temporal hyperedge prediction):
+
+```bash
+cd thgn
+python train_self_supervised.py -d congress-bills --use_memory --prefix thgn-attn --n_runs 1
+```
+
+**TCEN** (TGN on the clique-expanded stream):
+
+```bash
+cd tcen
+python train_self_supervised.py -d congress-bills --use_memory --prefix tcen-attn --n_runs 1
+```
+
+Reported experiments use **node memory** (`--use_memory`). Increase `--n_runs` to match the replication protocol in **Section 5.7**.
+
+**THGN-only training flag:**
+
+- `--train_neg_overlap_ratio` — overlap \rho for **on-the-fly** training negatives (default `0.99`); val/test negatives remain those frozen at preprocessing.
+
+### 8.5 Running both models from the repo root
+
+`run_thon.py` runs THGN then TCEN with the same dataset name, optionally forwarding hyperparameters via **prefixed** flags (`--thgn-*`, `--tcen-*`). Any flag you omit keeps each trainer’s script defaults.
+
+```bash
+python run_thon.py --data congress-bills \
+  --thgn-use-memory --thgn-prefix thgn-attn --thgn-n-runs 1 \
+  --tcen-use-memory --tcen-prefix tcen-attn --tcen-n-runs 1
+```
+
+Other useful switches:
+
+| Flag | Role |
+|------|------|
+| `--dry-run` | Print the two training commands without executing. |
+| `--skip-thgn` / `--skip-tcen` | Run only one model. |
+| `--continue-on-error` | Still run TCEN if THGN exits non-zero. |
+| `--python` | Python executable to use (default: current interpreter). |
+| `--thgn-train-neg-overlap-ratio` | Passed through to THGN as `--train_neg_overlap_ratio`. |
+| `--thgn-extra-arg` / `--tcen-extra-arg` | Repeatable; each value is shell-split and appended to the corresponding command (for flags not wrapped by the driver). |
+
+Prefixed names use **kebab-case** on the CLI; they map to the **snake_case** arguments of `train_self_supervised.py` (e.g. `--thgn-n-degree` → `--n_degree`).
+
+### 8.6 Overlap sweeps
+
+To vary evaluation hardness (**Section 5.4**), run `preprocess_thon.py` once per desired `--neg-overlap-ratio`, then train both models on the regenerated splits. Keep `--neg-seed` fixed if you want the same random structure across \rho except for the overlap constraint; change seeds for alternate negative draws.
+
+### 8.7 General training flags (THGN and TCEN)
+
+The following summarize shared and model-specific CLI options. **THGN** uses `--n_degree` as a **hyperedge** neighbor budget; **TCEN** uses it as a **pairwise** temporal neighbor count. **THGN** adds `--train_neg_overlap_ratio` and `--use_node_embedding_in_message`. **TCEN** adds `--use_destination_embedding_in_message` and `--use_source_embedding_in_message` for pairwise message conditioning.
+
+```text
+optional arguments:
+  -d DATA, --data DATA         Dataset name (CSV stem); default differs per script (set explicitly)
+  --bs BS                      Batch size
+  --prefix PREFIX              Prefix for checkpoints and logs
+  --n_degree N_DEGREE          Neighbor budget (hyperedges for THGN, edges for TCEN)
+  --n_head N_HEAD              Attention heads
+  --n_epoch N_EPOCH            Max epochs
+  --n_layer N_LAYER            Graph attention layers
+  --lr LR                      Learning rate
+  --patience                   Early-stopping patience
+  --n_runs                     Number of runs (mean/std over random seeds)
+  --drop_out DROP_OUT          Dropout probability
+  --gpu GPU                    GPU index
+  --node_dim NODE_DIM          Node embedding width
+  --time_dim TIME_DIM          Time encoding width
+  --use_memory                 Enable node memory (recommended for reported runs)
+  --embedding_module           graph_attention | graph_sum | identity | time
+  --message_function           mlp | identity
+  --memory_updater             gru | rnn
+  --aggregator                 Message aggregator (e.g. last)
+  --memory_update_at_end       Update memory at end of batch instead of start
+  --message_dim                Message width
+  --memory_dim                 Memory width
+  --backprop_every             Batches per backward step
+  --different_new_nodes        Disjoint new-node sets for val vs. test (off by default)
+  --uniform                    Uniform vs. most-recent temporal neighbors
+  --randomize_features         Randomize input node features
+  --dyrep                      DyRep-style variant
+
+THGN only:
+  --train_neg_overlap_ratio    Training negative overlap with positives (0–1)
+  --use_node_embedding_in_message
+                               Include node embeddings in messages (hypergraph analogue of
+                               source/destination embedding flags)
+
+TCEN only:
+  --use_destination_embedding_in_message
+  --use_source_embedding_in_message
+```
+

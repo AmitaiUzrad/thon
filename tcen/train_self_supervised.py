@@ -300,8 +300,8 @@ for i in range(args.n_runs):
     # Initialize streaming train dump only for epoch 0
     if epoch == 0:
       stream_dir = Path("runtime_split_dumps"); stream_dir.mkdir(parents=True, exist_ok=True)
-      tcn_train_stream_path = stream_dir / f"ml_{DATA}_train_runtime_stream.csv"
-      with open(tcn_train_stream_path, "w", newline="") as f:
+      tcen_train_stream_path = stream_dir / f"ml_{DATA}_train_runtime_stream.csv"
+      with open(tcen_train_stream_path, "w", newline="") as f:
         f.write("interaction_id,u,i,ts,label,idx,split,split_inductive,contains_new_node,is_new_node_val,"
                 "is_new_node_test,runtime_train_neg_u,runtime_train_neg_i\n")
     for k in range(0, num_batch, args.backprop_every):
@@ -357,7 +357,7 @@ for i in range(args.n_runs):
           cols = ["interaction_id","u","i","ts","label","idx","split","split_inductive",
                   "contains_new_node","is_new_node_val","is_new_node_test",
                   "runtime_train_neg_u","runtime_train_neg_i"]
-          batch_rows[cols].to_csv(tcn_train_stream_path, mode="a", index=False, header=False)
+          batch_rows[cols].to_csv(tcen_train_stream_path, mode="a", index=False, header=False)
 
       loss /= args.backprop_every
 

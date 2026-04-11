@@ -170,7 +170,7 @@ parser.add_argument('--use_node_embedding_in_message', action='store_true',
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
 parser.add_argument('--train_neg_overlap_ratio', type=float, default=0.99,
-                    help='THN training negative overlap ratio with positives (0.0-1.0)')
+                    help='THGN training negative overlap ratio with positives (0.0-1.0)')
 
 
 try:
@@ -312,8 +312,8 @@ for i in range(args.n_runs):
     # Initialize streaming train dump only for epoch 0
     if epoch == 0:
       stream_dir = Path("runtime_split_dumps"); stream_dir.mkdir(parents=True, exist_ok=True)
-      thn_train_stream_path = stream_dir / f"ml_{DATA}_train_runtime_stream.csv"
-      with open(thn_train_stream_path, "w", newline="") as f:
+      thgn_train_stream_path = stream_dir / f"ml_{DATA}_train_runtime_stream.csv"
+      with open(thgn_train_stream_path, "w", newline="") as f:
         f.write("interaction_id,nodes,ts,label,idx,split,split_inductive,contains_new_node,"
                 "is_new_node_val,is_new_node_test,runtime_train_neg_nodes\n")
     for k in range(0, num_batch, args.backprop_every):
@@ -366,7 +366,7 @@ for i in range(args.n_runs):
           batch_rows["runtime_train_neg_nodes"] = [",".join(map(str, n)) for n in negative_hyperedges]
           cols = ["interaction_id","nodes","ts","label","idx","split","split_inductive",
                   "contains_new_node","is_new_node_val","is_new_node_test","runtime_train_neg_nodes"]
-          batch_rows[cols].to_csv(thn_train_stream_path, mode="a", index=False, header=False)
+          batch_rows[cols].to_csv(thgn_train_stream_path, mode="a", index=False, header=False)
 
       loss /= args.backprop_every
 

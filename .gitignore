@@ -24,7 +24,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Logs and results (both thn/ and tcn/)
+# Logs and results (both thgn/ and tcen/)
 thgn/log/
 tcen/log/
 thgn/results/

@@ -138,7 +138,7 @@ def sample_negative_hyperedge(
   return [int(x) for x in neg_nodes]
 
 
-def build_thn_dataframe(
+def build_thgn_dataframe(
   raw_df: pd.DataFrame,
   hyperedge_feat: np.ndarray,
   node_mapping: Dict[int, int],
@@ -165,42 +165,42 @@ def build_thn_dataframe(
       "idx": interaction_id,
     })
 
-  thn_df = pd.DataFrame(rows)
-  splits = assign_temporal_splits(thn_df["ts"].values)
+  thgn_df = pd.DataFrame(rows)
+  splits = assign_temporal_splits(thgn_df["ts"].values)
   split_inductive, contains_new, is_new_node_val, is_new_node_test, new_nodes, meta = compute_inductive_labels(
-    thn_df["nodes_list"].tolist(),
-    thn_df["ts"].values,
+    thgn_df["nodes_list"].tolist(),
+    thgn_df["ts"].values,
     splits,
     new_node_ratio,
     inductive_seed,
   )
-  thn_df["split"] = splits
-  thn_df["split_inductive"] = split_inductive
-  thn_df["contains_new_node"] = contains_new
-  thn_df["is_new_node_val"] = is_new_node_val
-  thn_df["is_new_node_test"] = is_new_node_test
+  thgn_df["split"] = splits
+  thgn_df["split_inductive"] = split_inductive
+  thgn_df["contains_new_node"] = contains_new
+  thgn_df["is_new_node_val"] = is_new_node_val
+  thgn_df["is_new_node_test"] = is_new_node_test
 
   all_mapped_nodes = set(node_mapping.values())
   neg_rng = np.random.RandomState(neg_seed)
   neg_nodes_col = []
-  for _, row in thn_df.iterrows():
+  for _, row in thgn_df.iterrows():
     if row["split"] in ("val", "test"):
       neg_nodes = sample_negative_hyperedge(row["nodes_list"], all_mapped_nodes, neg_overlap_ratio, neg_rng)
       neg_nodes_col.append(",".join(map(str, neg_nodes)))
     else:
       neg_nodes_col.append("")
-  thn_df["neg_nodes"] = neg_nodes_col
+  thgn_df["neg_nodes"] = neg_nodes_col
 
   feat_dim = hyperedge_feat.shape[1] if hyperedge_feat.size > 0 else 1
-  thn_feat = np.vstack([np.zeros((1, feat_dim), dtype=float), np.array(feat_rows, dtype=float)])
-  return thn_df, thn_feat, meta, new_nodes
+  thgn_feat = np.vstack([np.zeros((1, feat_dim), dtype=float), np.array(feat_rows, dtype=float)])
+  return thgn_df, thgn_feat, meta, new_nodes
 
 
-def build_tcn_dataframe(thn_df: pd.DataFrame, node_mapping: Dict[int, int]) -> Tuple[pd.DataFrame, np.ndarray]:
+def build_tcen_dataframe(thgn_df: pd.DataFrame, node_mapping: Dict[int, int]) -> Tuple[pd.DataFrame, np.ndarray]:
   rows = []
   feat_rows: List[np.ndarray] = []
   edge_idx = 1
-  for _, row in thn_df.iterrows():
+  for _, row in thgn_df.iterrows():
     pos_nodes = sorted(parse_hyperedge_nodes(row["nodes"]))
     pos_pairs = list(combinations(pos_nodes, 2))
     neg_pairs = []
@@ -228,9 +228,9 @@ def build_tcn_dataframe(thn_df: pd.DataFrame, node_mapping: Dict[int, int]) -> T
       })
       feat_rows.append(np.array([0.0]))  # Will be replaced by parent feature dim logic below.
       edge_idx += 1
-  tcn_df = pd.DataFrame(rows)
+  tcen_df = pd.DataFrame(rows)
   _ = node_mapping
-  return tcn_df, np.array(feat_rows, dtype=float)
+  return tcen_df, np.array(feat_rows, dtype=float)
 
 
 def write_split_csvs_only(df: pd.DataFrame, out_dir: Path, dataset_name: str) -> None:
@@ -250,11 +250,11 @@ def save_metadata(stats_out_dir: Path, dataset_name: str, new_nodes: Set[int], i
 
 
 def main():
-  parser = argparse.ArgumentParser("Shared HOTN preprocessing for THN and TCN")
+  parser = argparse.ArgumentParser("Shared HOTN preprocessing for THGN and TCEN")
   parser.add_argument("--data", type=str, required=True)
   parser.add_argument("--input-dir", type=str, default="data")
-  parser.add_argument("--thn-out", type=str, default="thn/data")
-  parser.add_argument("--tcn-out", type=str, default="tcn/data")
+  parser.add_argument("--thgn-out", type=str, default="thgn/data")
+  parser.add_argument("--tcen-out", type=str, default="tcen/data")
   parser.add_argument("--stats-out-dir", type=str, default="data")
   parser.add_argument("--new-node-ratio", type=float, default=0.1)
   parser.add_argument("--inductive-seed", type=int, default=2020)
@@ -267,7 +267,7 @@ def main():
   write_dataset_stats(raw_df, Path(args.stats_out_dir) / f"{args.data}_stats.txt")
 
   node_mapping = reindex_nodes_contiguous_1_based(raw_df["nodes_raw"].tolist())
-  thn_df, thn_feat, inductive_meta, new_nodes = build_thn_dataframe(
+  thgn_df, thgn_feat, inductive_meta, new_nodes = build_thgn_dataframe(
     raw_df,
     hyperedge_feat,
     node_mapping,
@@ -277,27 +277,27 @@ def main():
     args.neg_seed,
   )
 
-  feat_dim = thn_feat.shape[1]
-  np.save(Path(args.thn_out) / f"ml_{args.data}.npy", thn_feat)
-  np.save(Path(args.thn_out) / f"ml_{args.data}_node.npy", np.zeros((max(node_mapping.values()) + 1, 172)))
-  write_split_csvs_only(thn_df.drop(columns=["nodes_list"]), Path(args.thn_out), args.data)
+  feat_dim = thgn_feat.shape[1]
+  np.save(Path(args.thgn_out) / f"ml_{args.data}.npy", thgn_feat)
+  np.save(Path(args.thgn_out) / f"ml_{args.data}_node.npy", np.zeros((max(node_mapping.values()) + 1, 172)))
+  write_split_csvs_only(thgn_df.drop(columns=["nodes_list"]), Path(args.thgn_out), args.data)
 
-  tcn_rows = []
-  tcn_feat_rows = [np.zeros(feat_dim, dtype=float)]
+  tcen_rows = []
+  tcen_feat_rows = [np.zeros(feat_dim, dtype=float)]
   edge_idx = 1
-  for _, row in thn_df.iterrows():
+  for _, row in thgn_df.iterrows():
     pos_nodes = sorted(row["nodes_list"])
     pos_pairs = list(combinations(pos_nodes, 2))
     neg_pairs = []
     if row["split"] in ("val", "test") and row["neg_nodes"]:
       neg_nodes = sorted(parse_hyperedge_nodes(row["neg_nodes"]))
       neg_pairs = list(combinations(neg_nodes, 2))
-    parent_feat = thn_feat[int(row["idx"])]
+    parent_feat = thgn_feat[int(row["idx"])]
     for j, (u, i) in enumerate(pos_pairs):
       neg_u, neg_i = ("", "")
       if j < len(neg_pairs):
         neg_u, neg_i = neg_pairs[j]
-      tcn_rows.append({
+      tcen_rows.append({
         "interaction_id": int(row["interaction_id"]),
         "u": int(u),
         "i": int(i),
@@ -312,13 +312,13 @@ def main():
         "neg_u": neg_u,
         "neg_i": neg_i,
       })
-      tcn_feat_rows.append(parent_feat.copy())
+      tcen_feat_rows.append(parent_feat.copy())
       edge_idx += 1
 
-  tcn_df = pd.DataFrame(tcn_rows)
-  np.save(Path(args.tcn_out) / f"ml_{args.data}.npy", np.array(tcn_feat_rows, dtype=float))
-  np.save(Path(args.tcn_out) / f"ml_{args.data}_node.npy", np.zeros((max(node_mapping.values()) + 1, 172)))
-  write_split_csvs_only(tcn_df, Path(args.tcn_out), args.data)
+  tcen_df = pd.DataFrame(tcen_rows)
+  np.save(Path(args.tcen_out) / f"ml_{args.data}.npy", np.array(tcen_feat_rows, dtype=float))
+  np.save(Path(args.tcen_out) / f"ml_{args.data}_node.npy", np.zeros((max(node_mapping.values()) + 1, 172)))
+  write_split_csvs_only(tcen_df, Path(args.tcen_out), args.data)
 
   save_metadata(Path(args.stats_out_dir), args.data, new_nodes, inductive_meta, args.neg_overlap_ratio, args.neg_seed)
   print("Preprocessing complete.")

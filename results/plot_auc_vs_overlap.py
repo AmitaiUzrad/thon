@@ -8,7 +8,7 @@ import pandas as pd
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Plot AUC vs overlap for THN/TCN with mean and std across runs."
+        description="Plot AUC vs overlap for THGN/TCEN with mean and std across runs."
     )
     parser.add_argument(
         "--csv",
@@ -50,10 +50,10 @@ def main() -> None:
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
-    color_map = {"thn": "blue", "tcn": "red"}
-    label_map = {"thn": "THGN", "tcn": "TGN"}
+    color_map = {"thgn": "blue", "tcen": "red"}
+    label_map = {"thgn": "THGN", "tcen": "TCEN"}
 
-    for model in ["thn", "tcn"]:
+    for model in ["thgn", "tcen"]:
         mdf = grouped[grouped["model"] == model].sort_values("overlap")
         if mdf.empty:
             continue

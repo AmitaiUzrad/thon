@@ -36,14 +36,14 @@ def _add_prefixed_training_args(parser: argparse.ArgumentParser, prefix: str, in
   parser.add_argument(f"--{prefix}-randomize-features", action="store_true")
   parser.add_argument(f"--{prefix}-dyrep", action="store_true")
 
-  if prefix == "thn":
+  if prefix == "thgn":
     parser.add_argument(f"--{prefix}-use-node-embedding-in-message", action="store_true")
   else:
     parser.add_argument(f"--{prefix}-use-destination-embedding-in-message", action="store_true")
     parser.add_argument(f"--{prefix}-use-source-embedding-in-message", action="store_true")
 
   if include_train_neg_overlap:
-    parser.add_argument("--thn-train-neg-overlap-ratio", type=float, default=None)
+    parser.add_argument(f"--{prefix}-train-neg-overlap-ratio", type=float, default=None)
 
 
 def _append_if_set(cmd: List[str], cli_flag: str, value) -> None:
@@ -88,58 +88,57 @@ def _build_train_cmd(python_exec: str, train_script_path: Path, model: str, args
   _append_bool(cmd, "--randomize_features", getattr(args, f"{model}_randomize_features"))
   _append_bool(cmd, "--dyrep", getattr(args, f"{model}_dyrep"))
 
-  if model == "thn":
-    _append_bool(cmd, "--use_node_embedding_in_message", args.thn_use_node_embedding_in_message)
-    _append_if_set(cmd, "--train_neg_overlap_ratio", args.thn_train_neg_overlap_ratio)
-    for item in args.thn_extra_arg:
+  if model == "thgn":
+    _append_bool(cmd, "--use_node_embedding_in_message", args.thgn_use_node_embedding_in_message)
+    _append_if_set(cmd, "--train_neg_overlap_ratio", args.thgn_train_neg_overlap_ratio)
+    for item in args.thgn_extra_arg:
       cmd.extend(shlex.split(item))
   else:
-    _append_bool(cmd, "--use_destination_embedding_in_message", args.tcn_use_destination_embedding_in_message)
-    _append_bool(cmd, "--use_source_embedding_in_message", args.tcn_use_source_embedding_in_message)
-    for item in args.tcn_extra_arg:
+    _append_bool(cmd, "--use_destination_embedding_in_message", args.tcen_use_destination_embedding_in_message)
+    _append_bool(cmd, "--use_source_embedding_in_message", args.tcen_use_source_embedding_in_message)
+    for item in args.tcen_extra_arg:
       cmd.extend(shlex.split(item))
 
   return cmd
 
 
 def main() -> None:
-  parser = argparse.ArgumentParser("Run THN then TCN self-supervised training on shared preprocessed data")
+  parser = argparse.ArgumentParser("Run THGN then TCEN self-supervised training on shared preprocessed data")
   parser.add_argument("--data", type=str, required=True, help="Dataset name (without .csv)")
   parser.add_argument("--python", type=str, default=sys.executable, help="Python executable to use")
   parser.add_argument("--dry-run", action="store_true", help="Print commands only")
-  parser.add_argument("--skip-thn", action="store_true")
-  parser.add_argument("--skip-tcn", action="store_true")
-  parser.add_argument("--continue-on-error", action="store_true", help="Run TCN even if THN fails")
-  parser.add_argument("--thn-extra-arg", action="append", default=[], help='Extra raw arg(s) for THN, e.g. --thn-extra-arg "--foo 1"')
-  parser.add_argument("--tcn-extra-arg", action="append", default=[], help='Extra raw arg(s) for TCN, e.g. --tcn-extra-arg "--bar 2"')
+  parser.add_argument("--skip-thgn", action="store_true")
+  parser.add_argument("--skip-tcen", action="store_true")
+  parser.add_argument("--continue-on-error", action="store_true", help="Run TCEN even if THGN fails")
+  parser.add_argument("--thgn-extra-arg", action="append", default=[], help='Extra raw arg(s) for THGN, e.g. --thgn-extra-arg "--foo 1"')
+  parser.add_argument("--tcen-extra-arg", action="append", default=[], help='Extra raw arg(s) for TCEN, e.g. --tcen-extra-arg "--bar 2"')
 
-  _add_prefixed_training_args(parser, "thn", include_train_neg_overlap=True)
-  _add_prefixed_training_args(parser, "tcn", include_train_neg_overlap=False)
+  _add_prefixed_training_args(parser, "thgn", include_train_neg_overlap=True)
+  _add_prefixed_training_args(parser, "tcen", include_train_neg_overlap=False)
   args = parser.parse_args()
 
   root = Path(__file__).resolve().parent
-  thn_script = root / "thn" / "train_self_supervised.py"
-  tcn_script = root / "tcn" / "train_self_supervised.py"
+  thgn_script = root / "thgn" / "train_self_supervised.py"
+  tcen_script = root / "tcen" / "train_self_supervised.py"
 
-  if not args.skip_thn:
-    thn_cmd = _build_train_cmd(args.python, thn_script, "thn", args)
-    print("[run_hotn] THN command:")
-    print(" ".join(shlex.quote(x) for x in thn_cmd))
+  if not args.skip_thgn:
+    thgn_cmd = _build_train_cmd(args.python, thgn_script, "thgn", args)
+    print("[run_thon] THGN command:")
+    print(" ".join(shlex.quote(x) for x in thgn_cmd))
     if not args.dry_run:
-      thn_proc = subprocess.run(thn_cmd, cwd=str(root / "thn"))
-      if thn_proc.returncode != 0 and not args.continue_on_error:
-        raise SystemExit(thn_proc.returncode)
+      thgn_proc = subprocess.run(thgn_cmd, cwd=str(root / "thgn"))
+      if thgn_proc.returncode != 0 and not args.continue_on_error:
+        raise SystemExit(thgn_proc.returncode)
 
-  if not args.skip_tcn:
-    tcn_cmd = _build_train_cmd(args.python, tcn_script, "tcn", args)
-    print("[run_hotn] TCN command:")
-    print(" ".join(shlex.quote(x) for x in tcn_cmd))
+  if not args.skip_tcen:
+    tcen_cmd = _build_train_cmd(args.python, tcen_script, "tcen", args)
+    print("[run_thon] TCEN command:")
+    print(" ".join(shlex.quote(x) for x in tcen_cmd))
     if not args.dry_run:
-      tcn_proc = subprocess.run(tcn_cmd, cwd=str(root / "tcn"))
-      if tcn_proc.returncode != 0:
-        raise SystemExit(tcn_proc.returncode)
+      tcen_proc = subprocess.run(tcen_cmd, cwd=str(root / "tcen"))
+      if tcen_proc.returncode != 0:
+        raise SystemExit(tcen_proc.returncode)
 
 
 if __name__ == "__main__":
   main()
-
