@@ -224,6 +224,8 @@ The experiments suggest that clique expansion is often competitive when negative
 
 The strongest differences appear in datasets with many large interactions, where high-overlap negatives preserve most of the original group and therefore induce many pairwise relations that remain locally plausible after clique expansion. In these settings, TCEN struggles because the expanded pairwise representation no longer cleanly distinguishes positive and negative interactions, whereas THGN can reason directly about the compatibility of the group as a whole.
 
+In light of these observations, the results also suggest a more extreme prediction setting that becomes natural at the highest overlap regime, where negatives differ from positives by only a single node. In this case, the task can be viewed as **missing-member prediction** in nearly complete interactions: given a set of nodes with exactly one element removed, the goal is to identify the missing participant that completes the original group. This can be seen as a direct generalization of link prediction from edges to higher-order interactions. In this regime, particularly in datasets with substantial higher-order structure, THGN is substantially better suited than TCEN, since the decision depends on global compatibility of the full set rather than a collection of pairwise compatibilities that remain largely unchanged under clique expansion.
+
 ## 8. Usage
 
 Experiments follow one pipeline: **preprocess** temporal hypergraphs into aligned splits, then run **self-supervised** training for **THGN** in `thgn/` and **TCEN** in `tcen/` (a pairwise temporal model on the clique-expanded stream from the same preprocessing run).

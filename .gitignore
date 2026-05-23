@@ -62,5 +62,7 @@ data/*
 results/*
 !results/*.png
 !results/thon_summary.csv
+results/*.py
+results/plot_auc_vs_overlap.py
 
 **/*:Zone.Identifier
