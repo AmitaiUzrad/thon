@@ -53,5 +53,14 @@ tcen/data/*.npy
 thgn/data/*.csv
 tcen/data/*.csv
 
+# data/: only raw datasets + interaction-size histograms (not stats, scripts, etc.)
+data/*
+!data/*.csv
+!data/*_interaction_size_hist.png
+
+# results/: only summary CSV + AUC plots (not plotting scripts)
+results/*
+!results/*.png
+!results/thon_summary.csv
 
 **/*:Zone.Identifier

@@ -3,7 +3,15 @@ import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+
+
+def capped_auc_yerr(mean: pd.Series, std: pd.Series) -> np.ndarray:
+    """Asymmetric yerr so mean ± deviation stays in [0, 1]."""
+    s = std.fillna(0.0).to_numpy()
+    m = mean.to_numpy()
+    return np.array([np.minimum(s, m), np.minimum(s, 1.0 - m)])
 
 
 def main() -> None:
@@ -63,7 +71,7 @@ def main() -> None:
         axes[0].errorbar(
             x,
             mdf["old_auc_mean"].to_numpy(),
-            yerr=mdf["old_auc_std"].fillna(0.0).to_numpy(),
+            yerr=capped_auc_yerr(mdf["old_auc_mean"], mdf["old_auc_std"]),
             color=color_map[model],
             linestyle="-",
             marker="o",
@@ -77,7 +85,7 @@ def main() -> None:
         axes[1].errorbar(
             x,
             mdf["new_auc_mean"].to_numpy(),
-            yerr=mdf["new_auc_std"].fillna(0.0).to_numpy(),
+            yerr=capped_auc_yerr(mdf["new_auc_mean"], mdf["new_auc_std"]),
             color=color_map[model],
             linestyle="--",
             marker="o",

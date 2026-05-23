@@ -1,4 +1,4 @@
-# Temporal Higher-Order Networks: THGN and a Clique-Expanded TGN Baseline
+# Temporal Higher-Order Networks: THGN and a Clique-Expansion TGN Baseline
 
 ## Table of contents
 
@@ -10,16 +10,52 @@
 - [6. Results](#6-results)
 - [7. Summary](#7-summary)
 - [8. Usage](#8-usage)
+- [9. References](#8-references)
 
 ## 1. Overview
 
-Many real-world systems are naturally described by **higher-order** temporal interactions: several entities participate jointly in an event at a single timestamp (e.g., co-presence, co-annotation, multi-way relations). A standard approach is to **reduce** such events to a collection of dyadic edges—for example by taking every pair of participants within each group interaction—and to apply temporal graph models such as Temporal Graph Networks (TGN) on the resulting pairwise stream.
+### Temporal interaction data
 
-This repository studies an alternative: **Temporal Hypergraph Networks (THGN)**, which treat each interaction as a single set-valued event \(S, t\) and extend the TGN-style recipe (node memory, temporal neighbor aggregation, learned scoring) to that setting. For comparison we implement **Temporal Clique Expansion Networks (TCEN)**, a TGN-style model not on the raw hypergraph but on a **clique expansion** of the same data: each higher-order event is expanded into all unordered pairs of its members, yielding a temporal edge list that a pairwise TGN can ingest.
+Many real-world systems evolve through streams of **timestamped interactions** between entities: users communicate in social networks, accounts exchange funds in financial systems, researchers co-author papers, or tags co-occur on online platforms. Such data are naturally modeled as a **temporal graph** (or temporal network), where nodes represent entities and interactions occur at specific times.
 
-The scientific question is therefore not only whether THGN scores well in isolation, but whether modeling **group structure explicitly** differs in behavior and difficulty from modeling the **pairwise shadow** of the same phenomena, under aligned splits, metrics, and (where applicable) negative-construction protocols.
+In many applications, interactions are not only **pairwise**. Instead, several entities may participate jointly in a single event at time \(t\). These higher-order interactions can be written as set-valued events \((S,t)\), where \(S\) is a set of participating nodes.
 
-Key finding (preview - update with results). We observe a sharp transition in task difficulty: TCEN performs best when negatives are easy while THGN tends to outperform TCEN when negatives require reasoning about group structure. 
+This repository studies **temporal link prediction** in that setting: given a candidate interaction at time \(t\), predict whether that interaction occurs based only on past history.
+
+---
+
+### Pairwise temporal models: TGN
+
+For standard dyadic streams of events \((u,v,t)\), **Temporal Graph Networks (TGN)** provide a widely used self-supervised framework for temporal link prediction. TGN maintains a memory per node, updates it from past interactions, retrieves temporal neighbors before the query time, and scores candidate interactions against sampled negatives.
+
+A common way to apply TGN to higher-order data is to first perform a **clique expansion**: every group interaction is decomposed into all unordered node pairs, producing a temporal interaction stream that a pairwise model can ingest.
+
+---
+
+### THGN and TCEN
+
+This repository introduces **THGN (Temporal Hypergraph Networks)**, a higher-order generalization of the Temporal Graph Network (TGN) framework, and compares it against a pairwise baseline derived from the same data.
+
+- **THGN (Temporal Hypergraph Networks)** — Temporal context aggregation, memory updates, negative sampling, and decoding are generalized from pairwise interactions to higher-order interactions, allowing the model to score entire groups directly.
+
+- **TCEN (Temporal Clique Expansion Networks)** — applies a standard TGN to the clique expansion of the same higher-order interactions. Each interaction is expanded into all unordered node pairs, producing a purely pairwise temporal stream.
+
+Although TCEN trains on pairwise interactions, evaluation is performed at the original interaction level so both models solve the same prediction task under aligned preprocessing and negative construction.
+
+---
+
+### Scientific question
+
+The goal is not only to evaluate whether THGN performs well in isolation, but to study whether explicitly modeling **group structure** behaves differently from modeling only the **pairwise projection** of the same phenomena.
+
+To isolate that question, preprocessing, temporal splits, inductive masks, negative construction, and evaluation metrics are aligned across both pipelines.
+
+A central experimental parameter is the **overlap ratio** between positive and negative interactions. Low overlap produces easy negatives, while high overlap produces near-positive negatives that require reasoning about higher-order group structure.
+
+**Main observation.** As the overlap ratio increases, both models exhibit a clear and consistent deterioration in performance, as expected from the increasing difficulty of distinguishing negatives that become structurally closer to positive interactions.
+
+At low overlap ratios (easy negatives), THGN and TCEN are often competitive, with relative performance depending on the dataset. However, as overlap increases and negatives become increasingly similar to positives, THGN consistently outperforms TCEN, suggesting an advantage to explicitly modeling higher-order group structure rather than relying on pairwise projections.
+
 
 ---
 
@@ -29,15 +65,15 @@ THGN preserves the high-level TGN philosophy—evolving node state, temporal nei
 
 ### 2.1 Event space: from pairs to sets
 
-TGN assumes events of the form \(u, v, t\): an ordered or unordered pair of endpoints at time t. THGN assumes \(S, t\) where S is a finite set of nodes with **variable cardinality**. The prediction target is no longer “this edge exists” but “this **set** co-occurs as one interaction at t”. That change forces **permutation invariance** over members of S in the scoring rule, and it changes what counts as meaningful temporal context (co-participation in past **groups**, not only past pairwise touches). This distinction becomes critical when predicting whether a node fits into an existing group: pairwise compatibility with each member does not guarantee joint compatibility with the set.
+TGN assumes events of the form \(u, v, t\): an ordered or unordered pair of nodes (edge) at time t. THGN assumes events of the form \(S, t\) where S is a finite set of nodes (hyperedge) with **variable cardinality**. The prediction target is no longer “this edge occurs” but “this **set** co-occurs as one interaction at t”. That change forces **permutation invariance** over members of S in the scoring rule, and it changes what counts as meaningful temporal context (co-participation in past **groups**, not only past pairwise touches). This distinction becomes critical when predicting whether a node fits into an existing group: pairwise compatibility with each member does not guarantee joint compatibility with the set.
 
 ### 2.2 Message semantics: from dyadic conditioning to set-to-node conditioning
 
-In TGN, memory updates are driven by pairwise interactions: each endpoint’s message is conditioned on the **other** endpoint and the interaction context. In THGN, every node \(i \in S\) receives an update signal that must reflect the **rest of the hyperedge** \(S \setminus \{i\}\)—a set-valued counterpart, not a single “other node”. A fixed-dimensional summary (aggregation over co-participants) is required so that message dimension does not grow with |S|. 
+In TGN, memory updates are driven by pairwise interactions: each node’s message is conditioned on the **other** node and the interaction context. In THGN, each node \(i \in S\) receives an update signal that must reflect the **rest of the nodes** \(S \setminus \{i\}\)—a set-valued counterpart, not a single “other node”. A fixed-dimensional summary (aggregation over co-participants) is required so that message dimension does not grow with |S|. 
 
 ### 2.3 Temporal context: interaction-level neighborhoods
 
-TGN gathers context from past **pairwise** contacts. THGN instead gathers context from past **group** contacts. The outline is: (i) identify several past hyperedges that involved the query node and occurred **before** the query time (same non-leakage idea as TGN); (ii) from **each** such hyperedge, take the **other** participants as contextual nodes—so locality is defined by “who was in the same interaction,” not only “who touched the query node in isolation.” Large hyperedges are subsampled so context stays bounded. The temporal attention module then aggregates these slots like TGN aggregates neighbor embeddings, with each slot still carrying the timestamp and interaction identity of its parent event. Deeper layers repeat the same pattern on neighbors-of-neighbors, so multi-hop structure propagates through **sequences of past hyperedges**, not only through a flattened pairwise stream.
+TGN gathers context from past **pairwise** contacts. THGN instead gathers context from past **group** contacts. The outline is: (i) identify several past interactions that involved the query node and occurred **before** the query time (same non-leakage idea as TGN); (ii) from **each** such interaction, take the **other** participants as contextual nodes—so locality is defined by “who was in the same interaction,” not only “who touched the query node in isolation.” Large interactions are subsampled so context stays bounded. The temporal attention module then aggregates these slots like TGN aggregates neighbor embeddings, with each slot still carrying the timestamp and interaction identity of its parent event. Deeper layers repeat the same pattern on neighbors-of-neighbors, so multi-hop structure propagates through **sequences of past interactions**, not only through a flattened pairwise representation.
 
 ### 2.4 Prediction semantics: from pair scoring to set scoring
 
@@ -45,17 +81,17 @@ TGN’s decoder scores a pair of node embeddings. THGN must assign a scalar to a
 
 ### 2.5 Self-supervised signal: negatives in set space
 
-Link prediction with TGN typically contrasts observed edges against sampled **non-edges** at the same time. Hyperedge prediction requires contrasts in **set space**: negatives are node sets of the **same size** as the positive hyperedge. For **validation and test**, how hard those negatives are is controlled by an **overlap ratio** between the negative set and the positive (higher overlap yields harder, near-positive negatives). Details of construction and alignment with the pairwise baseline are in **Section 4**.
+Link prediction with TGN typically contrasts observed edges against sampled **non-edges** at the same time. Hyperedge prediction requires contrasts in **set space**: negatives are node sets of the **same size** as the positive interaction. For **validation and test**, how hard those negatives are is controlled by an **overlap ratio** between the negative set and the positive (higher overlap yields harder, near-positive negatives). Details of construction and alignment with the pairwise baseline are in **Section 4**.
 
 ---
 
 ## 3. TCEN: Clique Expansion as the Pairwise Baseline
 
-**TCEN** denotes the use of a standard **Temporal Graph Network** (TGN) architecture on data derived from the same higher-order source as THGN. The reduction is explicit and structural:
+**TCEN** denotes the use of a standard **Temporal Graph Network** (TGN) architecture on data derived from the same higher-order source as THGN. The reduction is explicit:
 
-**Clique expansion.** For each observed hyperedge S at timestamp t (with associated feature vector attached to that interaction in preprocessing), form one dyadic training or evaluation instance for every **unordered pair** \(\{u,v\} \subseteq S\) with \(u \neq v\). All such pairs inherit the **same** timestamp t and the **same** parent hyperedge features (replicated per pair in the edge-feature table). Thus the temporal edge stream seen by TCEN is the union of cliques induced by each higher-order event, not an independently collected pairwise dataset.
+**Clique expansion.** For each observed hyperedge S at timestamp t (with associated feature vector attached to that hyperedge in preprocessing), form one dyadic training or evaluation instance for every **unordered pair** \(\{u,v\} \subseteq S\) with \(u \neq v\). All such pairs inherit the **same** timestamp t and the **same** parent hyperedge features. Thus, the temporal edge stream seen by TCEN is not an independently collected pairwise dataset, but a projection of higher-order events.
 
-**Evaluation.** Training and inference remain **pairwise**: the network outputs one probability per expanded edge. For validation and test, results are reported at the **original hyperedge** (interaction) level so they align with THGN: all clique pairs that share the same interaction ID are grouped, and the score for that interaction is the **average** of the predicted probabilities over those positive pairs (and separately the **average** over the corresponding negative pairs from the aligned negative clique). AUC and AP are computed from these per-interaction aggregates, not from treating every pair row as an independent label. Importantly, TCEN is not trained to predict hyperedges directly, but rather pairwise edges that are later aggregated at evaluation time. 
+**Evaluation.** Training and inference remain **pairwise**: the network outputs one probability per expanded edge. For validation and test, results are reported at the **original hyperedge** (interaction) level so they align with THGN: all clique pairs that share the same interaction ID are grouped, and the score for that interaction is the **average** of the predicted probabilities over those positive pairs (and separately the **average** over the corresponding negative pairs from the aligned negative clique). AUC and AP are computed from these per-interaction aggregates, not from treating every pair as an independent label. Importantly, TCEN is not trained to predict hyperedges directly, but rather pairwise edges that are later aggregated at evaluation time. 
 
 **Why this baseline.** Clique expansion is the natural pairwise **projection** of higher-order data: it is what many pipelines implicitly assume when they “flatten” group interactions to edges. Comparing THGN to TCEN isolates whether retaining **one event per group** (THGN) behaves differently from **many correlated pair events per group** (TCEN), under shared temporal splits and inductive masks. 
 
@@ -83,9 +119,9 @@ We use **three** temporal hypergraph datasets. Each record lists a set of partic
 
 | Dataset | Domain (informal) | Non-singleton interactions | Unique nodes |
 |--------|-------------------|----------------------------|---------------|
-| **NDC-classes** | Drug–drug co-listing (NDC drug classes) | 46,285 | 1,148 |
+| **NDC-classes** | Drug–drug co-listing (NDC drug classes) | 46,285 | 1,149 |
 | **congress-bills** | Legislative co-sponsorship (bills) | 105,929 | 1,718 |
-| **tags-stack-overflow** | Co-tagging on Stack Overflow posts | 1,253,618 | 25,586 |
+| **tags-stack-overflow** | Co-tagging on Stack Overflow posts | 438,720 | 20,063 |
 
 Finer counts, including histograms of interaction size on the raw tables, are emitted next to the source data during preprocessing.
 
@@ -138,11 +174,55 @@ All preprocessing and split generation are deterministic given a random seed.
 
 ## 6. Results
 
----
+Across all datasets, performance deteriorates as the overlap ratio increases for both THGN and TCEN. This behavior is expected: higher overlap produces harder negatives that are increasingly similar to the positive interaction, making the prediction task substantially more challenging. At low overlap ratios, the relative behavior of the two models is dataset-dependent. However, as overlap increases, a consistent pattern emerges: THGN becomes increasingly favorable relative to TCEN, suggesting that explicit modeling of higher-order group structure becomes more important when negatives cannot be separated through simple pairwise compatibility alone.
+
+### NDC-classes
+
+Interaction-size distribution (non-singleton hyperedges, % of interactions):
+
+![NDC-classes interaction-size distribution](data/NDC-classes_interaction_size_hist.png)
+
+Test AUC vs. evaluation negative overlap \(\rho\) (transductive left, inductive right; mean ± std over seeds):
+
+![NDC-classes AUC vs overlap](results/auc_vs_overlap_NDC_classes.png)
+
+On **NDC-classes**, TCEN performs slightly better than THGN for overlap ratios below \(0.5\), but performance changes sharply once the overlap reaches \(0.5\) and above. This is consistent with the structure of the dataset: the majority of interactions are dyadic, where overlap ratios below \(0.5\) produce negatives in which **both nodes differ** from the positive edge, whereas ratios of \(0.5\) and above force the negative to share **one endpoint** with the positive. This creates a qualitatively harder prediction regime, explaining the sharp transition observed around \(\rho = 0.5\).
+
+### congress-bills
+
+Interaction-size distribution (non-singleton hyperedges, % of interactions):
+
+![congress-bills interaction-size distribution](data/congress-bills_interaction_size_hist.png)
+
+Test AUC vs. evaluation negative overlap \(\rho\) (transductive left, inductive right; mean ± std over seeds):
+
+![congress-bills AUC vs overlap](results/auc_vs_overlap_congress_bills.png)
+
+On **congress-bills**, THGN already performs slightly better than TCEN even at lower overlap ratios, and the advantage widens substantially as overlap increases. The transition around \(\rho = 0.5\) is again clearly visible, with TCEN degrading much more rapidly than THGN.
+
+This dataset contains substantially richer higher-order structure than NDC-classes: more than one third of interactions are of size \(8\) or larger, compared to roughly 3% in NDC-classes. In such large interactions, high-overlap negatives retain most of the original nodes. Under clique expansion, many negative pairs therefore correspond to pairwise relations that also appear in the positive interaction. As a result, the pairwise stream seen by TCEN becomes highly ambiguous, since many local pairwise signals remain compatible with the positive event even when the overall group is incorrect.
+
+THGN is less affected by this phenomenon because it evaluates the interaction as a set-valued event rather than decomposing it into independent pairs. The largest performance gap between the models is observed on this dataset.
+
+### tags-stack-overflow
+
+Interaction-size distribution (non-singleton hyperedges, % of interactions):
+
+![tags-stack-overflow interaction-size distribution](data/tags-stack-overflow_interaction_size_hist.png)
+
+Test AUC vs. evaluation negative overlap \(\rho\) (transductive left, inductive right; mean ± std over seeds):
+
+![tags-stack-overflow AUC vs overlap](results/auc_vs_overlap_tags_stack_overflow.png)
+
+On **tags-stack-overflow**, THGN consistently outperforms TCEN across essentially the entire overlap range. The advantage is moderate but stable.
+
+Unlike congress-bills, this dataset contains no interactions larger than size \(5\), limiting the extent to which clique expansion creates severe pairwise ambiguity. At the same time, the dataset still contains enough non-dyadic structure that preserving the interaction as a higher-order object remains beneficial. This produces a persistent but smaller advantage for THGN relative to the larger gap observed on congress-bills.
 
 ## 7. Summary
 
----
+The experiments suggest that clique expansion is often competitive when negatives are easy and pairwise evidence is sufficient, particularly in datasets dominated by small interactions. However, as negatives become structurally similar to positives, preserving the interaction as a higher-order event becomes increasingly advantageous.
+
+The strongest differences appear in datasets with many large interactions, where high-overlap negatives preserve most of the original group and therefore induce many pairwise relations that remain locally plausible after clique expansion. In these settings, TCEN struggles because the expanded pairwise representation no longer cleanly distinguishes positive and negative interactions, whereas THGN can reason directly about the compatibility of the group as a whole.
 
 ## 8. Usage
 
@@ -160,7 +240,7 @@ scikit_learn==0.23.1
 
 ### 8.2 Data layout
 
-Place the raw hypergraph table as a single CSV:
+Place the raw hypergraph table as a single CSV (see example datasets in `data/` for the expected CSV format):
 
 ```text
 data/<dataset>.csv
@@ -293,4 +373,25 @@ TCEN only:
   --use_destination_embedding_in_message
   --use_source_embedding_in_message
 ```
+
+## 9. References
+
+[1] E. Rossi, B. Chamberlain, F. Frasca, D. Eynard, F. Monti, M. Bronstein.  
+*Temporal Graph Networks for Deep Learning on Dynamic Graphs* (2020).  
+arXiv:2006.10637 — https://arxiv.org/abs/2006.10637
+
+[2] A. R. Benson, R. Abebe, M. T. Schaub, A. Jadbabaie, J. Kleinberg.  
+*Simplicial closure and higher-order link prediction* (2018).  
+Proceedings of the National Academy of Sciences.  
+https://doi.org/10.1073/pnas.1800683115
+
+[3] J. H. Fowler.  
+*Connecting the Congress: A Study of Cosponsorship Networks* (2006).  
+Political Analysis 14(4):456–487.  
+https://doi.org/10.1093/pan/mpl002
+
+[4] J. H. Fowler.  
+*Legislative cosponsorship networks in the US House and Senate* (2006).  
+Social Networks 28(4):454–465.  
+https://doi.org/10.1016/j.socnet.2005.11.003
 
